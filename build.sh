@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")"
 platform=switch2
-image=ounce-sdk:latest
+image=ounce-devkit:latest
 case "${1:-}" in
 switch2) shift ;;
 switch)

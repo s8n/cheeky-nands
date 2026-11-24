@@ -46,3 +46,8 @@ python3 net_pull.py verify 20 0 end UserDataRoot.bin
 ```
 
 This will generate and compare hashes of chunks on both console and PC, and if any parts differ, it'll compare them byte by byte. You should expect some minor changes between dump and validate, as the system is running while we're doing this. If you see major differences, dump again :(
+
+## Building
+
+- https://github.com/ouncebrew/ounce-devkit -> `docker build -t ounce-devkit .`
+- `./build.sh switch2`
