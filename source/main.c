@@ -187,7 +187,7 @@ static void draw_menu(void) {
     }
     put(2, hint_color, line);
 
-    // Partition list, row 0 being ALL.
+    // Partition list, row 0 being ALL. One blank row keeps it apart from the hint above.
     for (int v = 0; v < list_h; v++) {
         const int row = g_top + v;
         const char* color = WHITE;
@@ -212,7 +212,7 @@ static void draw_menu(void) {
         char marked[NBE_LINE_MAX + 1]; // the line, with room for the selection marker
         snprintf(marked, sizeof marked, "%s%s", selected ? ">" : " ", line);
         // selected: bright (cyan, or red for a row that cannot be opened); else plain.
-        put(HEADER_ROWS + v, selected ? (failing ? RED : CYAN) : (failing ? "\x1b[31m" : color),
+        put(HEADER_ROWS + 1 + v, selected ? (failing ? RED : CYAN) : (failing ? "\x1b[31m" : color),
             marked);
     }
 

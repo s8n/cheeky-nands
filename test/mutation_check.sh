@@ -463,6 +463,10 @@ mutate_ui "a long name is cut in a row that cannot be opened" <<'M'
                 snprintf(line, sizeof line, "%3u] %-31.31s %10s  %s", p->id, p->name, "-", rs);
 ===>                snprintf(line, sizeof line, "%3u] %-30.30s %10s  %s", p->id, p->name, "-", rs);
 M
+mutate_ui "the list starts right under the hint" <<'M'
+        put(HEADER_ROWS + 1 + v, selected ? (failing ? RED : CYAN) : (failing ? "\x1b[31m" : color),
+===>        put(HEADER_ROWS + v, selected ? (failing ? RED : CYAN) : (failing ? "\x1b[31m" : color),
+M
 mutate_ui "the list does not scroll to keep the selection in view" <<'M'
     if (g_sel >= g_top + h) g_top = g_sel - h + 1;
 ===>    if (false && g_sel >= g_top + h) g_top = g_sel - h + 1;

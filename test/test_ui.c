@@ -233,6 +233,8 @@ static void s_list_and_dump(void) {
     CHECK(never("[host-test, fw"), "the title still names the console and its firmware");
     CHECK(seen("\nscan: 21 partition(s) listed, 3 openable"), "no scan line");
     CHECK(seen("\n>  ALL    every openable partition"), "ALL is not selected at start");
+    CHECK(ui_frame_with("\n\n>  ALL    every openable partition", 0) >= 0,
+          "no blank row between the hint and ALL");
     CHECK(seen(" 0] BootPartition1Root") && seen("  BOOT0"), "no row for id 0");
     CHECK(seen(" 30] User") && seen("  USER"), "no row for id 30");
     CHECK(seen(" 27] CalibrationBinary") && seen("-  0x00320002 PermissionDenied"),
