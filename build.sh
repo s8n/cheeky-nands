@@ -1,6 +1,6 @@
 #!/bin/sh
-# ./build.sh            Switch 2 (default): nand-backup-experiments-switch2.nro via ounce-sdk:latest
-# ./build.sh switch     Switch 1: nand-backup-experiments.nro via devkitpro/devkita64 (needs that image)
+# ./build.sh            Switch 2 (default): cheeky-nands-switch2.nro via ounce-sdk:latest
+# ./build.sh switch     Switch 1: cheeky-nands.nro via devkitpro/devkita64 (needs that image)
 # Anything after that goes to make, e.g. ./build.sh clean
 set -e
 cd "$(dirname "$0")"
@@ -14,5 +14,5 @@ switch)
     image=devkitpro/devkita64:latest
     ;;
 esac
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/build/nand-backup-experiments" -w /build/nand-backup-experiments \
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/build/cheeky-nands" -w /build/cheeky-nands \
     "$image" make PLATFORM="$platform" "$@"

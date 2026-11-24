@@ -1,4 +1,4 @@
-// nand-backup-experiments: list the console's BIS (NAND) partitions as the FS sysmodule
+// cheeky-nands: list the console's BIS (NAND) partitions as the FS sysmodule
 // exposes them through OpenBisStorage, and dump the selected one (or all of them) to the SD
 // card. Text UI.
 //
@@ -13,7 +13,7 @@
 #include "nbe_fmt.h"
 #include "net.h"
 
-#define OUT_DIR "/nand-backup-experiments" // as the SD card's FsFileSystem sees it
+#define OUT_DIR "/cheeky-nands" // as the SD card's FsFileSystem sees it
 #ifndef NBE_SD_MOUNT
 #define NBE_SD_MOUNT "sdmc:" // the same directory as stdio sees it (the host test overrides it)
 #endif
@@ -143,12 +143,7 @@ static void draw_menu(void) {
 
     consoleClear();
 
-    const u32 fw = hosversionGet();
-    if (fw)
-        snprintf(line, sizeof line, "%s v%s  [%s, fw %u.%u.%u]", NBE_APP_NAME, NBE_APP_VERSION,
-                 nbe_platform(), HOSVER_MAJOR(fw), HOSVER_MINOR(fw), HOSVER_MICRO(fw));
-    else
-        snprintf(line, sizeof line, "%s v%s  [%s]", NBE_APP_NAME, NBE_APP_VERSION, nbe_platform());
+    snprintf(line, sizeof line, "%s v%s", NBE_APP_NAME, NBE_APP_VERSION);
     put(0, CYAN, line);
 
     char net[32];

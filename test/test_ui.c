@@ -22,7 +22,7 @@
 
 int nbe_app_main(int argc, char** argv);
 
-#define OUT_DIR "/nand-backup-experiments"
+#define OUT_DIR "/cheeky-nands"
 #define C ((s64)BIS_CHUNK_SIZE)
 #define P ((s64)BIS_PART_SIZE)
 enum { BLIND = 22 }; // polls for a dialog's 300 ms start-up window to pass (19 are needed)
@@ -229,7 +229,8 @@ static void s_list_and_dump(void) {
     nbe_app_main(0, NULL);
 
     CHECK(ui_frame_count() > 5, "%d frames were shown", ui_frame_count());
-    CHECK(seen("[host-test, fw 23.0.1]"), "no header with platform and firmware");
+    CHECK(seen("cheeky-nands v0.1"), "no title");
+    CHECK(never("[host-test, fw"), "the title still names the console and its firmware");
     CHECK(seen("\nscan: 21 partition(s) listed, 3 openable"), "no scan line");
     CHECK(seen("\n>  ALL    every openable partition"), "ALL is not selected at start");
     CHECK(seen(" 0] BootPartition1Root") && seen("  BOOT0"), "no row for id 0");

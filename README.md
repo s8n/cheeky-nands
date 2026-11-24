@@ -7,7 +7,7 @@ card.
 
 There are two ways to use it:
 
-- **On the console**: pick a partition and dump it to `sdmc:/nand-backup-experiments/`.
+- **On the console**: pick a partition and dump it to `sdmc:/cheeky-nands/`.
 - **Over the network**: turn on the network reader, then pull partition bytes
   with `net_pull.py` from a PC, and check a dump against the console afterwards.
 
@@ -18,8 +18,8 @@ menu:
 
 | Console | NRO |
 |---|---|
-| Switch 2 | `nand-backup-experiments-switch2.nro` |
-| Switch 1 | `nand-backup-experiments.nro` |
+| Switch 2 | `cheeky-nands-switch2.nro` |
+| Switch 1 | `cheeky-nands.nro` |
 
 To build them yourself, run `./build.sh` (Switch 2, the default) or
 `./build.sh switch` (Switch 1). Both need Docker and the matching image.
@@ -29,6 +29,11 @@ gets. `Y` scans again. Partitions the process may not open are still listed,
 with the result code in place of a size (for example
 `0x00000E02 TargetLocked`). On a Switch 2, `PRODINFOF`, `USER`, `SYSTEM` and
 `SystemProperPartition` are refused this way; on a Switch 1 they open.
+
+Ids that a Switch 2 has no storage for at all are left out instead: 21 to 26,
+29, 32, 34, 36 and 39. They are not in the list, `ALL` skips them, and a PC's
+`list` does not show them either. A PC can still ask for one by id; the console
+answers with the result code.
 
 ## Dumping on the console
 
@@ -48,7 +53,7 @@ The app keeps the console from falling asleep while it runs.
 
 ### Output files
 
-For a partition called `Name`, output goes to `sdmc:/nand-backup-experiments/`:
+For a partition called `Name`, output goes to `sdmc:/cheeky-nands/`:
 
 | File | Content |
 |---|---|

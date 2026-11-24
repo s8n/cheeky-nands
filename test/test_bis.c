@@ -746,6 +746,61 @@ static void test_scan_negative_size(void) {
     CHECK(seen == 1 && t.count == 20, "%d rows (id 30 seen %d times)", t.count, seen);
 }
 
+static void test_hidden_on_switch2(void) {
+    static const u32 absent[] = { 21, 22, 23, 24, 25, 26, 29, 32, 34, 36, 39 };
+    static const u32 kept[] = { 0, 10, 20, 27, 28, 30, 31, 33, 35, 37, 38, 40, 77, 255 };
+    BisTable t;
+    char img[900];
+
+    for (size_t i = 0; i < sizeof absent / sizeof absent[0]; i++)
+        CHECK(bis_absent_on_switch2(absent[i]), "id %u is not on the absent list", absent[i]);
+    for (size_t i = 0; i < sizeof kept / sizeof kept[0]; i++)
+        CHECK(!bis_absent_on_switch2(kept[i]), "id %u is on the absent list", kept[i]);
+
+    // A Switch 2 answers 0x002EE202 for those ids: no row for them, the others are unaffected.
+    world();
+    write_image("h20.bin", 4096, 21, NULL, 0);
+    path_in(img, sizeof img, g_img, "/h20.bin");
+    shim_storage_set(20, img);
+    shim_storage_deny(21, 0x2EE202);
+    shim_storage_deny(29, 0x2EE202);
+    shim_storage_deny(39, 0x2EE202);
+
+    bis_scan_as(&t, true);
+    CHECK(t.count == 9, "%d rows on a Switch 2, expected 9", t.count);
+    CHECK(t.openable_count == 1 && t.openable_total == 4096, "openable: %d, %lld bytes",
+          t.openable_count, (long long)t.openable_total);
+    for (int i = 0; i < t.count; i++)
+        CHECK(!bis_absent_on_switch2(t.parts[i].id), "id %u was listed on a Switch 2",
+              t.parts[i].id);
+
+    // The same world as a Switch 1: every named id is listed, refused or not.
+    bis_scan_as(&t, false);
+    CHECK(t.count == 20, "%d rows on a Switch 1, expected 20", t.count);
+    int seen21 = 0;
+    for (int i = 0; i < t.count; i++)
+        if (t.parts[i].id == 21) {
+            seen21++;
+            CHECK(!t.parts[i].openable && t.parts[i].open_rc == 0x2EE202, "id 21 row");
+        }
+    CHECK(seen21 == 1, "id 21 seen %d times on a Switch 1", seen21);
+
+    // An id on the list that opens is listed even on a Switch 2: the filter is for ids that
+    // are not there, not for ids the table names.
+    world();
+    write_image("h21.bin", 512, 22, NULL, 0);
+    path_in(img, sizeof img, g_img, "/h21.bin");
+    shim_storage_set(21, img);
+    bis_scan_as(&t, true);
+    int seen = 0;
+    for (int i = 0; i < t.count; i++)
+        if (t.parts[i].id == 21) {
+            seen++;
+            CHECK(t.parts[i].openable && t.parts[i].size == 512, "id 21 that opens was not listed");
+        }
+    CHECK(seen == 1, "id 21 seen %d times when it opens", seen);
+}
+
 static void test_scan_truncated(void) {
     BisTable t;
     char img[900];
@@ -893,6 +948,7 @@ static void test_fmt(void) {
     CHECK(strcmp(b, "2.50 GiB") == 0, "size(2.5G) = %s", b);
     nbe_fmt_hms(b, sizeof b, 3725);      CHECK(strcmp(b, "01:02:05") == 0, "hms = %s", b);
     CHECK(strcmp(nbe_platform(), "host-test") == 0, "platform");
+    CHECK(!nbe_is_switch2(), "the host test build calls itself a Switch 2");
 }
 
 // ---- partial dumps -----------------------------------------------------------------------------
@@ -1407,6 +1463,7 @@ int main(void) {
         { "scan", test_scan },
         { "scan negative", test_scan_negative_size },
         { "scan truncated", test_scan_truncated },
+        { "hidden on switch2", test_hidden_on_switch2 },
         { "bounce", test_bounce },
         { "plaintext", test_plaintext },
         { "bigfile", test_bigfile },

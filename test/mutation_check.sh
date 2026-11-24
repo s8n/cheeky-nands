@@ -315,6 +315,18 @@ mutate "scan does not report a truncated list" <<'M'
         if (t->count >= BIS_MAX_PARTITIONS) { t->truncated = true; break; }
 ===>        if (t->count >= BIS_MAX_PARTITIONS) { break; }
 M
+mutate "a Switch 2 lists the ids it has no storage for" <<'M'
+        if (!ok && switch2 && bis_absent_on_switch2(id)) continue; // no such storage on a Switch 2
+===>        // mutated: every named id gets a row
+M
+mutate "the absent-on-Switch-2 list starts at 22" <<'M'
+    21, 22, 23, 24, 25, 26, // BootConfigAndPackage2Part1..6
+===>    22, 23, 24, 25, 26, // BootConfigAndPackage2Part1..6
+M
+mutate "the absent-on-Switch-2 list also hides the user data area" <<'M'
+    21, 22, 23, 24, 25, 26, // BootConfigAndPackage2Part1..6
+===>    20, 21, 22, 23, 24, 25, 26, // BootConfigAndPackage2Part1..6
+M
 
 # ---- the on-console 4 GiB experiment ----------------------------------------------------------
 mutate "4GiB test trusts CreateFile without reading the length back" <<'M'

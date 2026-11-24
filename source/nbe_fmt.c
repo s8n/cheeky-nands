@@ -78,3 +78,11 @@ const char* nbe_platform(void) {
     return "switch1";
 #endif
 }
+
+bool nbe_is_switch2(void) {
+#if !defined(NBE_HOST_TEST) && defined(__SWITCH2__)
+    return true;
+#else
+    return false;
+#endif
+}

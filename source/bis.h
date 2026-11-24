@@ -6,7 +6,7 @@
 #pragma once
 #include "nbe_platform.h"
 
-#define NBE_APP_NAME    "nand-backup-experiments"
+#define NBE_APP_NAME    "cheeky-nands"
 #define NBE_APP_VERSION "0.1"
 
 #define BIS_KIB (1024ULL)
@@ -61,7 +61,17 @@ typedef struct {
 } BisTable;
 
 // Probe BisPartitionId 0..BIS_SCAN_MAX_ID. Read-only: OpenBisStorage, GetSize, Close.
+// Calls bis_scan_as() with the platform of this build.
 void bis_scan(BisTable* t);
+
+// bis_scan(), with the platform given. With `switch2` true, an id that a Switch 2 has no Bis
+// storage for and that refuses to open is left out of the table, so neither the list, ALL nor
+// the network LIST shows it. An id that opens is always listed.
+void bis_scan_as(BisTable* t, bool switch2);
+
+// True for the ids a Switch 2 answers 0x002EE202 ("no such storage") for: 21 to 26 (the
+// BootConfigAndPackage2 storages), 29, 32, 34, 36 and 39.
+bool bis_absent_on_switch2(u32 id);
 
 // Output file layout for one dump.
 typedef struct {

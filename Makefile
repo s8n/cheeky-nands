@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------------
-# nand-backup-experiments
+# cheeky-nands
 #
 #   PLATFORM=switch2 (default)  Switch 2 nro, built with libounce
 #   PLATFORM=switch             Switch 1 nro, built with libnx
@@ -25,8 +25,8 @@ $(error PLATFORM must be switch or switch2)
 endif
 
 #---------------------------------------------------------------------------------
-TARGET		:=	nand-backup-experiments$(if $(filter switch2,$(PLATFORM)),-switch2)
-APP_TITLE	:=	nand-backup-experiments
+TARGET		:=	cheeky-nands$(if $(filter switch2,$(PLATFORM)),-switch2)
+APP_TITLE	:=	cheeky-nands
 APP_AUTHOR	:=	ave
 APP_VERSION	:=	0.1
 BUILD		:=	build$(if $(filter switch2,$(PLATFORM)),-switch2)

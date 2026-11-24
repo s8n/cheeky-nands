@@ -18,3 +18,7 @@ void nbe_fmt_result(char* buf, size_t cap, Result rc);
 void nbe_fmt_hms(char* buf, size_t cap, u64 seconds);
 
 const char* nbe_platform(void);
+
+// True in a build for a Switch 2 (libounce). The host test build answers false.
+bool nbe_is_switch2(void);
+

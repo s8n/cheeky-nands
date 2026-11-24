@@ -153,6 +153,28 @@ Result bis_delete_outputs(FsFileSystem* sd, const char* out_dir, const char* nam
 // ---------------------------------------------------------------------------------------------
 
 void bis_scan(BisTable* t) {
+    bis_scan_as(t, nbe_is_switch2());
+}
+
+// Ids a Switch 2 has no Bis storage for. It answers 0x002EE202 for each of them, so there is
+// nothing to list or dump; on a Switch 1 the same ids are real partitions (or are answered
+// differently), so they stay in the table there.
+static const u32 g_absent_on_switch2[] = {
+    21, 22, 23, 24, 25, 26, // BootConfigAndPackage2Part1..6
+    29,                     // SafeMode
+    32,                     // SystemProperEncryption
+    34,                     // SignedSystemPartitionOnSafeMode
+    36,                     // System0
+    39,                     // Switch2Unidentified39
+};
+
+bool bis_absent_on_switch2(u32 id) {
+    for (size_t i = 0; i < sizeof g_absent_on_switch2 / sizeof g_absent_on_switch2[0]; i++)
+        if (g_absent_on_switch2[i] == id) return true;
+    return false;
+}
+
+void bis_scan_as(BisTable* t, bool switch2) {
     memset(t, 0, sizeof *t);
 
     for (u32 id = 0; id <= BIS_SCAN_MAX_ID; id++) {
@@ -169,6 +191,7 @@ void bis_scan(BisTable* t) {
 
         const bool ok = R_SUCCEEDED(rc);
         if (!ok && !k) continue; // nothing here and nothing named: not worth a row
+        if (!ok && switch2 && bis_absent_on_switch2(id)) continue; // no such storage on a Switch 2
         if (t->count >= BIS_MAX_PARTITIONS) { t->truncated = true; break; }
 
         BisPartition* p = &t->parts[t->count++];
