@@ -44,7 +44,6 @@ answers with the result code.
 | B | Go back in a dialog. During a dump: ask whether to cancel. While a PC is connected: ask whether to drop it. |
 | X | Toggle splitting into parts of just under 4 GiB. On by default. |
 | Y | Scan the partitions again. |
-| R | Run the 4 GiB test on the card (see below). |
 | ZL | Dump the selected partition from its start up to an end you choose. |
 | ZR | Turn the network reader on and off (see [Pulling over the network](#pulling-over-the-network)). |
 | + / − | Exit. While a dump runs or a PC is connected, only `+` does. |
@@ -63,9 +62,8 @@ For a partition called `Name`, output goes to `sdmc:/cheeky-nands/`:
 | `log.txt` | Everything the log area on screen showed, appended on each run. |
 
 Splitting matters because a FAT32 card cannot hold a single file over 4 GiB.
-On exFAT, `R` (the 4 GiB test) can confirm the card takes large files, and `X`
-can then be switched off to write one file per partition. The test writes no
-data but needs 4 GiB free.
+On an exFAT card `X` can be switched off to write one file per partition; on
+FAT32 leave it on.
 
 Put the parts back together on a PC:
 

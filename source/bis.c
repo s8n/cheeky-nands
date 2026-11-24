@@ -927,30 +927,3 @@ void bis_serve(NbeLink* link, const BisTable* table, const BisCallbacks* cb, Bis
         }
     }
 }
-
-// ---------------------------------------------------------------------------------------------
-// On-console experiment: how does this SD card treat a file of `size` bytes?
-// ---------------------------------------------------------------------------------------------
-
-void bis_bigfile_test(FsFileSystem* sd, const char* out_dir, s64 size, BisBigFileResult* out) {
-    char path[FS_MAX_PATH];
-    memset(out, 0, sizeof *out);
-    out->requested = size;
-    out->stored_size = -1;
-
-    snprintf(path, sizeof path, "%s/_bigfile_test.bin", out_dir);
-    fsFsDeleteFile(sd, path); // leftover of an interrupted earlier test
-
-    out->create_rc = fsFsCreateFile(sd, path, size, 0);
-    if (R_SUCCEEDED(out->create_rc)) {
-        FsFile f;
-        out->reopen_rc = fsFsOpenFile(sd, path, FsOpenMode_Read, &f);
-        if (R_SUCCEEDED(out->reopen_rc)) {
-            out->reopen_rc = fsFileGetSize(&f, &out->stored_size);
-            fsFileClose(&f);
-        }
-    }
-    out->delete_rc = fsFsDeleteFile(sd, path);
-    out->accepts = R_SUCCEEDED(out->create_rc) && R_SUCCEEDED(out->reopen_rc) &&
-                   out->stored_size == size;
-}

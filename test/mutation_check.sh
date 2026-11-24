@@ -328,17 +328,6 @@ mutate "the absent-on-Switch-2 list also hides the user data area" <<'M'
 ===>    20, 21, 22, 23, 24, 25, 26, // BootConfigAndPackage2Part1..6
 M
 
-# ---- the on-console 4 GiB experiment ----------------------------------------------------------
-mutate "4GiB test trusts CreateFile without reading the length back" <<'M'
-    out->accepts = R_SUCCEEDED(out->create_rc) && R_SUCCEEDED(out->reopen_rc) &&
-                   out->stored_size == size;
-===>    out->accepts = R_SUCCEEDED(out->create_rc);
-M
-mutate "4GiB test leaves its file behind" <<'M'
-    out->delete_rc = fsFsDeleteFile(sd, path);
-===>    out->delete_rc = 0;
-M
-
 # ---- ranges --------------------------------------------------------------------------------------
 
 mutate "a range dump ignores where the range starts" <<'M'

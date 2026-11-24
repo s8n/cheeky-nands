@@ -30,9 +30,6 @@
 #define BIS_SCAN_MAX_ID    255 // highest BisPartitionId tried during a scan
 #define BIS_MAX_PARTITIONS 64
 
-// First size a FAT32 directory entry cannot represent. Used by the optional on-console test.
-#define BIS_BIGFILE_TEST_SIZE 0x100000000ULL
-
 // App-internal Result module (not a Horizon module): lets the UI tell "our own check failed"
 // apart from "the FS sysmodule returned this".
 #define NBE_MODULE 436
@@ -231,20 +228,6 @@ typedef struct {
 // HASH, with pg->network set. `r` tells of the last request of the connection, also when the
 // reader closes it right after: a request that was refused stays refused.
 void bis_serve(NbeLink* link, const BisTable* table, const BisCallbacks* cb, BisServeResult* r);
-
-// On-console experiment: can this SD card hold a file of `size` bytes? Creates
-// "<out_dir>/_bigfile_test.bin" with that size, re-opens it to read the stored length back,
-// then deletes it. See README ("Files larger than 4 GiB") before running it on FAT32.
-typedef struct {
-    s64 requested;
-    Result create_rc;      // CreateFile result
-    Result reopen_rc;     // OpenFile/GetSize result after a successful create
-    s64 stored_size;      // length reported by GetSize after re-opening
-    Result delete_rc;
-    bool accepts;         // create + reopen succeeded and stored_size == requested
-} BisBigFileResult;
-
-void bis_bigfile_test(FsFileSystem* sd, const char* out_dir, s64 size, BisBigFileResult* out);
 
 // Monotonic nanoseconds.
 u64 bis_now_ns(void);

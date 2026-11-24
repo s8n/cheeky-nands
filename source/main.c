@@ -232,7 +232,7 @@ static void draw_menu(void) {
              "[A] dump  [X] split >4GiB: %s  [Y] rescan  [ZL] partial dump",
              g_split ? "ON " : "OFF");
     put(g_ch - 2, CYAN, line);
-    put(g_ch - 1, CYAN, "[R] 4 GiB test  [ZR] network reader  [+] exit");
+    put(g_ch - 1, CYAN, "[ZR] network reader  [+] exit");
     consoleUpdate(NULL);
 }
 
@@ -912,44 +912,6 @@ static void action_rescan(void) {
     if (g_sel >= menu_rows()) g_sel = menu_rows() - 1;
 }
 
-// Optional experiment, see README "Files larger than 4 GiB".
-static void action_bigfile_test(void) {
-    static const char* const lines[] = {
-        "SD card test: a file of exactly 4 GiB",
-        "Creates an empty 4 GiB file, reads its stored size back, then",
-        "deletes it. No data is written; 4 GiB must be free.",
-        "On FAT32 this asks the filesystem for a length it cannot store.",
-        "How it answers is what this test records.",
-        "Nothing else on the card is written.",
-    };
-    const int a = ui_confirm(lines, 6, "run test", "back");
-    if (a < 0) g_quit = true;
-    if (a != 1) return;
-
-    BisBigFileResult r;
-    char sz[24], rs[64];
-    bis_bigfile_test(g_sd, OUT_DIR, (s64)BIS_BIGFILE_TEST_SIZE, &r);
-
-    if (R_FAILED(r.create_rc)) {
-        nbe_fmt_result(rs, sizeof rs, r.create_rc);
-        ui_log("4GiB test: CreateFile refused: %s", rs);
-        ui_log("  -> refused: FAT32, or under 4 GiB free (free 4 GiB and run again to tell)");
-    } else if (r.accepts) {
-        ui_log("4GiB test: a 4 GiB file was created and read back with the right length");
-        ui_log("  -> this card takes files over 4 GiB (exFAT): single-file dumps work here");
-    } else {
-        nbe_fmt_size(sz, sizeof sz, r.stored_size);
-        nbe_fmt_result(rs, sizeof rs, r.reopen_rc);
-        ui_log("4GiB test: created, but the length reads back as %s [%s]", sz, rs);
-        ui_log("  -> lengths do not survive on this card: splitting is REQUIRED");
-    }
-    if (R_FAILED(r.delete_rc)) {
-        nbe_fmt_result(rs, sizeof rs, r.delete_rc);
-        ui_log("  warning: _bigfile_test.bin could not be deleted: %s", rs);
-    }
-    refresh_free();
-}
-
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
@@ -1028,7 +990,6 @@ int main(int argc, char** argv) {
                                                        : "NOT split: only correct on exFAT");
         }
         if (down & HidNpadButton_Y) action_rescan();
-        if (down & HidNpadButton_R) action_bigfile_test();
         if (down & HidNpadButton_ZL) action_dump_partial();
         if (down & HidNpadButton_ZR) action_toggle_network();
         if (down & (HidNpadButton_Plus | HidNpadButton_Minus)) break;

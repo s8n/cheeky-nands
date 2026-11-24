@@ -866,37 +866,6 @@ static void test_plaintext(void) {
     CHECK(r.plaintext == 0, "random data under id 31: plaintext=%d", r.plaintext);
 }
 
-static void test_bigfile(void) {
-    BisBigFileResult r;
-    char full[1100];
-    world();
-    bis_bigfile_test(&g_fs, OUT_DIR, 4096, &r);
-    CHECK(r.accepts && r.stored_size == 4096 && r.requested == 4096, "4 KiB on an empty card");
-    CHECK(r.create_rc == 0 && r.reopen_rc == 0 && r.delete_rc == 0, "rcs %08x %08x %08x",
-          (unsigned)r.create_rc, (unsigned)r.reopen_rc, (unsigned)r.delete_rc);
-    path_in(full, sizeof full, g_sd, "%s/_bigfile_test.bin", OUT_DIR);
-    CHECK(fsize(full) == -1, "test file left behind");
-
-    world();
-    shim_free_space(1000);
-    bis_bigfile_test(&g_fs, OUT_DIR, 1 << 20, &r);
-    CHECK(!r.accepts && r.create_rc == 0x4E02 && r.stored_size == -1, "not enough space");
-    CHECK(fsize(full) == -1, "test file left behind after a refused create");
-
-    world();
-    shim_free_space(1 << 20);
-    bis_bigfile_test(&g_fs, OUT_DIR, 4096, &r);
-    CHECK(r.accepts, "enough space for a small file");
-
-    world();
-    shim_size_skew(-1); // the card stores one byte less than asked
-    bis_bigfile_test(&g_fs, OUT_DIR, 4096, &r);
-    CHECK(!r.accepts && r.create_rc == 0 && r.reopen_rc == 0 && r.stored_size == 4095,
-          "a length that does not survive: accepts=%d stored=%lld", r.accepts,
-          (long long)r.stored_size);
-    CHECK(r.delete_rc == 0 && fsize(full) == -1, "test file left behind");
-}
-
 static void test_commit_failure_is_not_fatal(void) {
     const s64 size = C + 3;
     BisDumpResult r;
@@ -1466,7 +1435,6 @@ int main(void) {
         { "hidden on switch2", test_hidden_on_switch2 },
         { "bounce", test_bounce },
         { "plaintext", test_plaintext },
-        { "bigfile", test_bigfile },
         { "commit failure", test_commit_failure_is_not_fatal },
         { "refusals", test_refusals },
         { "formatting", test_fmt },
