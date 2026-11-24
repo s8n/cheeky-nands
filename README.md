@@ -62,3 +62,7 @@ This will generate and compare hashes of chunks on both console and PC, and if a
 ## Thanks to
 
 - SciresM, who pointed out this was possible in reswitched a few weeks back, [jump link](https://discord.com/channels/269333940928512010/1356976144418865384/1567965047693512736)
+
+## llm remark
+
+not happy about this being yet another llm project in this scene. once someone makes one by hand that has feature parity (dumping these partitions to SD or over network) I'll deprecate this.
