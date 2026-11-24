@@ -2,6 +2,8 @@
 
 Switch 2 homebrew to read NAND partitions and dump them to an SD card or over network to a PC.
 
+![screenshot of the app](.github/assets/screenshot.webp)
+
 ## Running it
 
 Copy the NRO for your console to the SD card under /switch/ and start it from the homebrew
