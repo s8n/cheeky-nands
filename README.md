@@ -1,7 +1,7 @@
 # cheeky-nands (with the lads)
 
-> [!IMPORTANT] epistemic status
-> just dropped it, needs more public testers, works well for me but don't rely fully on it yet, please.
+> [!IMPORTANT]
+> **epistemic status:** just dropped it, needs more public testers, works well for me but don't rely fully on it yet, please.
 
 Switch 2 homebrew to read NAND partitions and dump them to an SD card or over network to a PC.
 
