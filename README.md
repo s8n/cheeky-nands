@@ -1,8 +1,13 @@
 # cheeky-nands (with the lads)
 
+> [!IMPORTANT] epistemic status
+> just dropped it, needs more public testers, works well for me but don't rely fully on it yet, please.
+
 Switch 2 homebrew to read NAND partitions and dump them to an SD card or over network to a PC.
 
 ![screenshot of the app](.github/assets/screenshot.webp)
+
+^ 28, 30, 31, 33 not working on Switch 2 is normal and expected, and you'll be banned from the org if you complain about it in issues (if you have a tested way to read them that's fine to open an issue about, ofc).
 
 ## Running it
 
@@ -53,3 +58,7 @@ This will generate and compare hashes of chunks on both console and PC, and if a
 
 - https://github.com/ouncebrew/ounce-devkit -> `docker build -t ounce-devkit .`
 - `./build.sh switch2`
+
+## Thanks to
+
+- SciresM, who pointed out this was possible in reswitched a few weeks back, [jump link](https://discord.com/channels/269333940928512010/1356976144418865384/1567965047693512736)
