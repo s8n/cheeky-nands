@@ -234,7 +234,7 @@ static void draw_menu(void) {
         put(log_top + (i - first), WHITE, g_log[i]);
 
     snprintf(line, sizeof line,
-             "[A] dump  [X] split >4GiB: %s  [Y] rescan  [L] GPT  [ZL] partial dump",
+             "[A] dump  [X] split >4GiB: %s  [Y] rescan  [ZL] partial dump",
              g_split ? "ON " : "OFF");
     put(g_ch - 2, CYAN, line);
     put(g_ch - 1, CYAN, "[R] 4 GiB test  [ZR] network reader  [+] exit");
@@ -592,75 +592,11 @@ static void action_dump_selected(void) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Partition table and partial dumps
+// Partial dumps
 // ---------------------------------------------------------------------------------------------
-
-static BisGpt g_gpt; // the last table read; several KiB, so not on the stack
 
 static const BisPartition* selected_partition(void) {
     return g_sel > 0 ? &g_table.parts[g_sel - 1] : NULL;
-}
-
-// Show the GUID partition table at the start of the selected partition, and keep it as text.
-static void action_show_gpt(void) {
-    const BisPartition* p = selected_partition();
-    static char rows[BIS_GPT_MAX_ENTRIES][96];
-    const char* lines[BIS_GPT_MAX_ENTRIES + 4];
-    char title[NBE_LINE_MAX], more[NBE_LINE_MAX], rs[64], line[NBE_LINE_MAX];
-    int n = 0, used = 0, shown = 0;
-    // Rows left for entries under the title, the column heads and the prompt.
-    const int room = g_ch - 10;
-
-    if (!p) {
-        ui_log("ALL has no partition table of its own: select a partition first");
-        return;
-    }
-    consoleClear();
-    snprintf(line, sizeof line, "reading the partition table at the start of %s ...", p->name);
-    put(3, CYAN, line);
-    consoleUpdate(NULL);
-    bis_read_gpt(p->id, &g_gpt);
-
-    if (R_FAILED(g_gpt.rc)) {
-        nbe_fmt_result(rs, sizeof rs, g_gpt.rc);
-        ui_log("%s: the partition table could not be read [%s]", p->name, rs);
-        return;
-    }
-    if (!g_gpt.found) {
-        ui_log("%s: no partition table at its start", p->name);
-        return;
-    }
-    const Result wrc = bis_write_gpt(g_sd, OUT_DIR, p->name, &g_gpt);
-    if (R_FAILED(wrc)) {
-        nbe_fmt_result(rs, sizeof rs, wrc);
-        ui_log("%s: partition table read, but %s.gpt.txt could not be written [%s]", p->name,
-               p->name, rs);
-    } else {
-        ui_log("%s: partition table read (%u entries, %llu-byte blocks), kept as %s.gpt.txt",
-               p->name, g_gpt.entries, (unsigned long long)g_gpt.sector_size, p->name);
-    }
-
-    snprintf(title, sizeof title, "Partition table at the start of %s  (%llu-byte blocks)", p->name,
-             (unsigned long long)g_gpt.sector_size);
-    lines[n++] = title;
-    lines[n++] = "name                             start        size";
-    for (u32 i = 0; i < g_gpt.entries; i++) {
-        char a[24], b[24];
-        if (!g_gpt.table[i].name[0]) continue;
-        used++;
-        if (shown >= room) continue;
-        nbe_fmt_size(a, sizeof a, (s64)(g_gpt.table[i].first_lba * g_gpt.sector_size));
-        nbe_fmt_size(b, sizeof b, bis_gpt_size_of(&g_gpt, (int)i));
-        snprintf(rows[shown], sizeof rows[0], "%-32.32s %10s  %10s", g_gpt.table[i].name, a, b);
-        lines[n++] = rows[shown];
-        shown++;
-    }
-    if (used > shown) {
-        snprintf(more, sizeof more, "... %d of %d entries shown. All of them are in %s.gpt.txt",
-                 shown, used, p->name);
-        lines[n++] = more;
-    }
-    if (ui_confirm(lines, n, NULL, "back") < 0) g_quit = true;
 }
 
 // The lowest set bit of `v` (0 for 0): when several move keys are down, the lowest acts.
@@ -668,7 +604,7 @@ static u64 lowest_bit(u64 v) { return v & (0ULL - v); }
 
 // Let the user choose where a partial dump of `p` ends. Returns 1 to start (*end holds the
 // end), 0 to go back, -1 to exit the app.
-static int ui_pick_end(const BisPartition* p, s64* end, bool from_table) {
+static int ui_pick_end(const BisPartition* p, s64* end) {
     char text[8][NBE_LINE_MAX];
     const u64 t0 = bis_now_ns();
     u64 repeat_key = 0, repeat_at = 0; // the move key being repeated, and when it repeats
@@ -700,10 +636,6 @@ static int ui_pick_end(const BisPartition* p, s64* end, bool from_table) {
         n++;
         snprintf(text[n], sizeof text[n], "[Left] [Right] -/+ %s    [L] [R] -/+ %s    hold to repeat",
                  a, b);
-        n++;
-        snprintf(text[n], sizeof text[n], "%s",
-                 from_table ? "The end is the start of USER, taken from the partition table."
-                            : "No partition table found: starting from the full size.");
         n++;
         fits = describe_space(*end, 0, text[n], sizeof text[n]); // never replaces another dump
         n++;
@@ -752,7 +684,6 @@ static int ui_pick_end(const BisPartition* p, s64* end, bool from_table) {
                 if (e > p->size) e = p->size; // the whole partition
                 else if (e < 512) e = 512;    // one block
                 *end = e;
-                from_table = false;
                 repeat_key = move;
                 repeat_at = now + (repeating ? REPEAT_INTERVAL_NS : REPEAT_DELAY_NS);
             }
@@ -761,14 +692,12 @@ static int ui_pick_end(const BisPartition* p, s64* end, bool from_table) {
     }
 }
 
-// Dump the selected partition from its start up to an end the user picks. When the partition
-// starts with a table that has a USER entry, the end starts at USER's first byte.
+// Dump the selected partition from its start up to an end the user picks.
 static void action_dump_partial(void) {
     const BisPartition* p = selected_partition();
     BisRange range;
-    s64 end, user;
-    bool from_table = false;
-    char rs[64], line[NBE_LINE_MAX];
+    s64 end;
+    char rs[64];
 
     if (!p) {
         ui_log("ALL cannot be dumped partially: select a partition");
@@ -780,19 +709,8 @@ static void action_dump_partial(void) {
         return;
     }
 
-    consoleClear();
-    snprintf(line, sizeof line, "reading the partition table at the start of %s ...", p->name);
-    put(3, CYAN, line);
-    consoleUpdate(NULL);
-    bis_read_gpt(p->id, &g_gpt);
     end = p->size;
-    user = bis_gpt_start_of(&g_gpt, "USER");
-    if (g_gpt.found && user > 0 && user < p->size) {
-        end = user;
-        from_table = true;
-    }
-
-    const int a = ui_pick_end(p, &end, from_table);
+    const int a = ui_pick_end(p, &end);
     if (a < 0) g_quit = true;
     if (a != 1) return;
 
@@ -1116,7 +1034,6 @@ int main(int argc, char** argv) {
         }
         if (down & HidNpadButton_Y) action_rescan();
         if (down & HidNpadButton_R) action_bigfile_test();
-        if (down & HidNpadButton_L) action_show_gpt();
         if (down & HidNpadButton_ZL) action_dump_partial();
         if (down & HidNpadButton_ZR) action_toggle_network();
         if (down & (HidNpadButton_Plus | HidNpadButton_Minus)) break;

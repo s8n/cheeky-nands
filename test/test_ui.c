@@ -93,48 +93,6 @@ static const char* storage(u32 id, const char* name, s64 size, u64 seed) {
     return keep(p);
 }
 
-static void put_le(u8* p, u64 v, int n) {
-    for (int i = 0; i < n; i++) p[i] = (u8)(v >> (8 * i));
-}
-
-// storage(), then a GUID partition table written over the start of the image, with 512-byte
-// blocks: SAFE, SYSTEM and USER, the last starting at byte 0x30000.
-static const char* storage_with_gpt(u32 id, const char* name, s64 size) {
-    static const struct {
-        const char* name;
-        u32 first, last;
-    } entry[] = {
-        { "SAFE", 0x40, 0x7F },
-        { "SYSTEM", 0x80, 0x17F },
-        { "USER", 0x180, 0x3FF },
-    };
-    const char* p = storage(id, name, size, 90);
-    FILE* f = fopen(p, "r+b");
-    u8 h[92] = "";
-    CHECK(f != NULL, "cannot open %s", p);
-    if (!f) return p;
-    memcpy(h, "EFI PART", 8);
-    put_le(h + 0x0C, 0x5C, 4);
-    put_le(h + 0x18, 1, 8);
-    put_le(h + 0x48, 2, 8);
-    put_le(h + 0x50, 3, 4);
-    put_le(h + 0x54, 0x80, 4);
-    fseek(f, 512, SEEK_SET);
-    fwrite(h, 1, sizeof h, f);
-    for (size_t i = 0; i < 3; i++) {
-        u8 e[128] = "";
-        u8* q = e + 0x38;
-        memset(e, 0x11, 16);
-        put_le(e + 0x20, entry[i].first, 8);
-        put_le(e + 0x28, entry[i].last, 8);
-        for (const char* c = entry[i].name; *c; c++, q += 2) put_le(q, (u8)*c, 2);
-        fseek(f, 1024 + 128 * (long)i, SEEK_SET);
-        fwrite(e, 1, sizeof e, f);
-    }
-    fclose(f);
-    return p;
-}
-
 // The part files of a dump called `stem` (a dump of `len` bytes), joined in order.
 static const char* concat_dump(const char* stem, s64 len) {
     static char cat[700];
@@ -206,17 +164,6 @@ static bool log_has(const char* text) {
     return strstr(g_log, text) != NULL;
 }
 
-static void read_text(const char* path, char* buf, size_t cap) {
-    FILE* f = fopen(path, "rb");
-    buf[0] = '\0';
-    if (f) {
-        const size_t n = fread(buf, 1, cap - 1, f);
-        buf[n] = '\0';
-        fclose(f);
-    }
-}
-
-// Number of files directly in the output directory whose name starts with `prefix`.
 static int count_outputs(const char* prefix) {
     DIR* d = opendir(SD(OUT_DIR));
     int n = 0;
@@ -576,83 +523,7 @@ static void s_split_toggle(void) {
     CHECK(ui_script_left() == 0, "%d script steps were not consumed", ui_script_left());
 }
 
-// L on a partition that starts with a partition table: the table on screen and as a file.
-static void s_gpt_view(void) {
-    char text[4096];
-    world(1);
-    storage_with_gpt(20, "h20.bin", 2 * P);
-    const int row = menu_row(20);
-
-    ui_idle(1);
-    ui_repeat(HidNpadButton_Down, row);
-    ui_press(HidNpadButton_L);
-    ui_idle(BLIND);
-    ui_press(HidNpadButton_B); // back to the list
-    ui_press(HidNpadButton_Plus);
-    nbe_app_main(0, NULL);
-
-    CHECK(seen("\nPartition table at the start of UserDataRoot  (512-byte blocks)"), "no table screen");
-    CHECK(seen("\nSAFE ") && seen("32 KiB      32 KiB"), "no SAFE row with its start and size");
-    CHECK(seen("\nSYSTEM ") && seen("64 KiB     128 KiB"), "no SYSTEM row");
-    CHECK(seen("\nUSER ") && seen("192 KiB     320 KiB"), "no USER row");
-    // The whole line is longer than the screen; what shows of it is this much.
-    CHECK(seen("\nUserDataRoot: partition table read (3 entries, 512-byte blocks)"), "no log line for the table");
-    read_text(SD(OUT_DIR "/UserDataRoot.gpt.txt"), text, sizeof text);
-    CHECK(strstr(text, "\nUSER 384 1023 196608 327680\n") != NULL, "the table file has no USER line: %s",
-          text);
-    CHECK(ui_script_left() == 0, "%d script steps were not consumed", ui_script_left());
-}
-
-// L on a partition without a table says so, and writes nothing.
-static void s_gpt_none(void) {
-    world(1);
-    storage(20, "h20.bin", 2 * P, 92);
-    const int row = menu_row(20);
-    ui_idle(1);
-    ui_repeat(HidNpadButton_Down, row);
-    ui_press(HidNpadButton_L);
-    ui_press(HidNpadButton_Plus);
-    nbe_app_main(0, NULL);
-
-    CHECK(seen("\nUserDataRoot: no partition table at its start"), "no 'no table' line");
-    CHECK(never("\nPartition table at the start of"), "a table screen was shown");
-    CHECK(count_outputs("UserDataRoot.gpt") == 0, "a table file was written");
-    CHECK(ui_script_left() == 0, "%d script steps were not consumed", ui_script_left());
-}
-
-// ZL: the end starts at USER's first byte, A dumps up to there.
-static void s_partial_dump(void) {
-    static const char stem[] = "UserDataRoot+0x0-0x30000";
-    world(1);
-    const char* img = storage_with_gpt(20, "i20.bin", 2 * P);
-    const int row = menu_row(20);
-
-    ui_idle(1);
-    ui_repeat(HidNpadButton_Down, row);
-    ui_press(HidNpadButton_ZL);
-    ui_idle(BLIND);
-    ui_press(HidNpadButton_A); // start
-    ui_idle(3);                // 0x30000 bytes are three chunks
-    ui_press(HidNpadButton_Plus);
-    nbe_app_main(0, NULL);
-
-    CHECK(seen("\nPartial dump of UserDataRoot: from offset 0 up to"), "no partial-dump dialog");
-    CHECK(seen("\n     192 KiB   (0x30000 bytes)"), "the end does not start at USER");
-    CHECK(seen("The end is the start of USER, taken from the partition table."), "no word where the end is from");
-    CHECK(seen("[A] start      [B] back"), "no way to start");
-    CHECK(seen("\nUserDataRoot+0x0-0x30000: ok, 192 KiB -> 2 file(s)"), "no ok line for the partial dump");
-    CHECK(fsize(SD(OUT_DIR "/%s.bin.00", stem)) == P && fsize(SD(OUT_DIR "/%s.bin.01", stem)) == 0x10000,
-          "part lengths %lld and %lld", (long long)fsize(SD(OUT_DIR "/%s.bin.00", stem)),
-          (long long)fsize(SD(OUT_DIR "/%s.bin.01", stem)));
-    CHECK(shim_files_equal(concat_dump(stem, 0x30000), image_slice(img, 0, 0x30000)),
-          "the partial dump differs from the image");
-    CHECK(count_outputs(stem) == 4, "%d files for the partial dump", count_outputs(stem));
-    CHECK(count_outputs("UserDataRoot.bin") == 0 && fsize(SD(OUT_DIR "/UserDataRoot.sha256")) == -1,
-          "a partial dump also produced files under the plain name");
-    CHECK(ui_script_left() == 0, "%d script steps were not consumed", ui_script_left());
-}
-
-// ZL on a partition without a table: the end starts at the full size and moves with the pad.
+// ZL: the end starts at the full size and moves with the pad.
 static void s_partial_manual(void) {
     static const char stem[] = "UserDataRoot+0x0-0x3e000";
     world(1);
@@ -672,7 +543,6 @@ static void s_partial_manual(void) {
     nbe_app_main(0, NULL);
 
     CHECK(seen("\n     256 KiB   (0x40000 bytes)"), "the end does not start at the full size");
-    CHECK(seen("No partition table found: starting from the full size."), "no word that there is no table");
     CHECK(seen("[Left] [Right] -/+ 8 KiB    [L] [R] -/+ 64 KiB    hold to repeat"), "no key help with the step sizes");
     CHECK(seen("\n     248 KiB   (0x3e000 bytes)"), "Left did not move the end");
     CHECK(never("0x4e000 bytes"), "R moved the end past the end of the partition");
@@ -979,9 +849,6 @@ static const struct { const char* name; void (*fn)(void); } g_scenarios[] = {
     { "no-sd-card", s_no_sd_card },
     { "scroll", s_scroll },
     { "split-toggle", s_split_toggle },
-    { "gpt-view", s_gpt_view },
-    { "gpt-none", s_gpt_none },
-    { "partial-dump", s_partial_dump },
     { "partial-manual", s_partial_manual },
     { "partial-repeat", s_partial_repeat },
     { "net-serve", s_net_serve },

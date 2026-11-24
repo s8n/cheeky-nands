@@ -327,7 +327,7 @@ mutate "4GiB test leaves its file behind" <<'M'
 ===>    out->delete_rc = 0;
 M
 
-# ---- ranges and the partition table --------------------------------------------------------------
+# ---- ranges --------------------------------------------------------------------------------------
 
 mutate "a range dump ignores where the range starts" <<'M'
             r->rc = io_read(&st, rng_start + base + off, g_chunk, n);
@@ -344,14 +344,6 @@ M
 mutate "a start beyond the end of the partition is accepted" <<'M'
     if (!is_whole && rng_start >= source_size) { // a whole dump of an empty partition is fine
 ===>    if (false && !is_whole && rng_start >= source_size) { // a whole dump of an empty partition is fine
-M
-mutate "table offsets are not scaled by the block size" <<'M'
-            return (s64)(g->table[i].first_lba * g->sector_size);
-===>            return (s64)(g->table[i].first_lba * 512);
-M
-mutate "table entries outside the first 64 KiB are not read" <<'M'
-        rc = io_read(&st, at, g_gpt_buf, (size_t)n);
-===>        rc = 0x202;
 M
 
 # ---- the network reader ------------------------------------------------------------------------
@@ -484,10 +476,6 @@ mutate_ui "a partial dump ignores the chosen end" <<'M'
     range.length = end;
 ===>    range.start = 0;
     range.length = 0;
-M
-mutate_ui "USER's start from the table is not used as the default end" <<'M'
-    if (g_gpt.found && user > 0 && user < p->size) {
-===>    if (false && g_gpt.found && user > 0 && user < p->size) {
 M
 mutate_ui "the end can be moved past the end of the partition" <<'M'
                 if (e > p->size) e = p->size; // the whole partition

@@ -40,7 +40,6 @@ with the result code in place of a size (for example
 | X | Toggle splitting into parts of just under 4 GiB. On by default. |
 | Y | Scan the partitions again. |
 | R | Run the 4 GiB test on the card (see below). |
-| L | Write the partition table at the start of the selected partition to `Name.gpt.txt`. |
 | ZL | Dump the selected partition from its start up to an end you choose. |
 | ZR | Turn the network reader on and off (see [Pulling over the network](#pulling-over-the-network)). |
 | + / − | Exit. While a dump runs or a PC is connected, only `+` does. |
@@ -56,7 +55,6 @@ For a partition called `Name`, output goes to `sdmc:/nand-backup-experiments/`:
 | `Name.bin` | The partition image. With splitting on, `Name.bin.00`, `Name.bin.01`, ... |
 | `Name.sha256` | One line per file, in `sha256sum -c` format, plus the hash of the whole partition. |
 | `Name.info` | Key = value text: partition id and name, size, part count, SHA-256, and whether the dump looks plaintext. |
-| `Name.gpt.txt` | The partition table at the start of the partition. Written by `L`, not by a dump. |
 | `log.txt` | Everything the log area on screen showed, appended on each run. |
 
 Splitting matters because a FAT32 card cannot hold a single file over 4 GiB.
@@ -90,10 +88,8 @@ move the end by a 32nd of the partition (32 MiB at most); L/R by a quarter
 only ever replaces files of exactly that name, so a full dump of the same
 partition is safe.
 
-`L` helps find a boundary: it reads the partition table at the start of the
-partition and shows the start and size of every entry. On a Switch 2,
-`UserDataRoot` is encrypted including its table, so `L` finds nothing there and
-the end has to be chosen by hand.
+The end is chosen by hand; the app does not look for a partition table to
+suggest one.
 
 ### About the bytes
 

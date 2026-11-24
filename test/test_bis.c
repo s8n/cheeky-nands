@@ -895,50 +895,7 @@ static void test_fmt(void) {
     CHECK(strcmp(nbe_platform(), "host-test") == 0, "platform");
 }
 
-// ---- the partition table (GPT) ----------------------------------------------------------------
-
-static void put_le(u8* p, u64 v, int n) {
-    for (int i = 0; i < n; i++) p[i] = (u8)(v >> (8 * i));
-}
-
-// An image that starts with a GUID partition table: the header in block 1 and `n` entries from
-// block `entry_lba`, with `sector`-byte blocks. The entry `unused` is left empty. With
-// `entry_size` 0 the header claims an entry size of 0 and no entries are written.
-static void write_gpt_image(const char* rel, s64 size, u64 sector, const s64* first, const s64* last,
-                            const char* const* names, int n, int unused, u32 entry_size,
-                            u64 entry_lba) {
-    char p[900];
-    u8* img = calloc(1, (size_t)size);
-    CHECK(img != NULL, "out of memory");
-    if (!img) return;
-    u8* h = img + sector;
-    memcpy(h, "EFI PART", 8);
-    put_le(h + 0x0C, 0x5C, 4); // header size
-    put_le(h + 0x18, 1, 8);    // the header's own block
-    put_le(h + 0x48, entry_lba, 8);
-    put_le(h + 0x50, (u64)n, 4);
-    put_le(h + 0x54, entry_size, 4); // 0: a header claiming an entry size of 0
-    if (entry_size >= 0x80) {
-        for (int i = 0; i < n; i++) {
-            u8* e = img + entry_lba * sector + (size_t)i * entry_size;
-            u8* q;
-            if (i == unused) continue;
-            for (int k = 0; k < 16; k++) e[k] = 0x11; // the type GUID: anything but zero
-            put_le(e + 0x20, (u64)first[i], 8);
-            put_le(e + 0x28, (u64)last[i], 8);
-            q = e + 0x38; // the name, UTF-16LE
-            for (const char* c = names[i]; *c; c++, q += 2) put_le(q, (u8)*c, 2);
-        }
-    }
-    path_in(p, sizeof p, g_img, "/%s", rel);
-    FILE* f = fopen(p, "wb");
-    CHECK(f != NULL, "cannot write %s", p);
-    if (f) {
-        fwrite(img, 1, (size_t)size, f);
-        fclose(f);
-    }
-    free(img);
-}
+// ---- partial dumps -----------------------------------------------------------------------------
 
 static void read_text(const char* path, char* buf, size_t cap) {
     FILE* f = fopen(path, "rb");
@@ -949,127 +906,6 @@ static void read_text(const char* path, char* buf, size_t cap) {
         fclose(f);
     }
 }
-
-static void test_gpt(void) {
-    static const s64 first[] = { 0x800, 0x8000, 0x8100, 0x40000, 0x140000 };
-    static const s64 last[] = { 0x6FFF, 0x80FF, 0x3FFFF, 0x13FFFF, 0x76AFFF };
-    static const char* const names[] = { "PRODINFO", "PRODINFOF", "SAFE", "SYSTEM", "USER" };
-    static const s64 first4[] = { 0x40, 0x800 };
-    static const s64 last4[] = { 0x7F, 0x9FF };
-    static const char* const names4[] = { "SYSTEM", "USER" };
-    enum { N = 5 };
-    BisGpt g;
-    char img[900], full[1100], text[4096], line[160];
-    s64 x;
-
-    // 512-byte blocks, as on a Switch 1 eMMC; one unused entry after the five.
-    world();
-    write_gpt_image("g512.bin", P, 512, first, last, names, N + 1, N, 0x80, 2);
-    path_in(img, sizeof img, g_img, "/g512.bin");
-    shim_storage_set(20, img);
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0 && g.found && g.sector_size == 512 && g.entries == N + 1,
-          "512-byte blocks: rc %08x found %d sector %llu entries %u", (unsigned)g.rc, g.found,
-          (unsigned long long)g.sector_size, g.entries);
-    CHECK(strcmp(g.table[4].name, "USER") == 0 && g.table[4].first_lba == 0x140000ULL, "the USER entry");
-    CHECK(strcmp(g.table[3].name, "SYSTEM") == 0 && g.table[0].first_lba == 0x800, "other entries");
-    CHECK(g.table[N].name[0] == '\0', "an unused entry has a name");
-    x = 0x140000LL * 512;
-    CHECK(bis_gpt_start_of(&g, "USER") == x, "USER starts at %lld, expected %lld",
-          (long long)bis_gpt_start_of(&g, "USER"), (long long)x);
-    CHECK(bis_gpt_start_of(&g, "user") == x && bis_gpt_start_of(&g, "User") == x,
-          "the name is not matched regardless of case");
-    CHECK(bis_gpt_start_of(&g, "BOOT0") == -1, "a missing name was found");
-    x = (0x76AFFFLL - 0x140000LL + 1) * 512;
-    CHECK(bis_gpt_size_of(&g, 4) == x, "USER is %lld bytes, expected %lld",
-          (long long)bis_gpt_size_of(&g, 4), (long long)x);
-    CHECK(bis_gpt_size_of(&g, N) == 0 && bis_gpt_size_of(&g, -1) == 0 && bis_gpt_size_of(&g, 99) == 0,
-          "an unused or missing entry has a size");
-
-    CHECK(bis_write_gpt(&g_fs, OUT_DIR, "UserDataRoot", &g) == 0, "writing the table as text");
-    path_in(full, sizeof full, g_sd, "%s/UserDataRoot.gpt.txt", OUT_DIR);
-    read_text(full, text, sizeof text);
-    snprintf(line, sizeof line, "USER %lld %lld 671088640 %lld\n", (long long)first[4],
-             (long long)last[4], (long long)bis_gpt_size_of(&g, 4));
-    CHECK(strstr(text, line) != NULL, "%s lacks %s", full, line);
-    CHECK(strstr(text, "block_size=512 entries=6\n") != NULL && strstr(text, "SYSTEM ") != NULL,
-          "%s lacks the block size or SYSTEM", full);
-    CHECK(bis_write_gpt(&g_fs, OUT_DIR, "UserDataRoot", &g) == 0, "writing it again over the old one");
-
-    // 4096-byte blocks: the header at 4096, the entries at 8192.
-    world();
-    write_gpt_image("g4096.bin", P, 4096, first4, last4, names4, 2, -1, 0x80, 2);
-    path_in(img, sizeof img, g_img, "/g4096.bin");
-    shim_storage_set(20, img);
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0 && g.found && g.sector_size == 4096 && g.entries == 2,
-          "4096-byte blocks: rc %08x found %d sector %llu entries %u", (unsigned)g.rc, g.found,
-          (unsigned long long)g.sector_size, g.entries);
-    CHECK(bis_gpt_start_of(&g, "USER") == 0x800LL * 4096, "USER starts at %lld with 4 KiB blocks",
-          (long long)bis_gpt_start_of(&g, "USER"));
-
-    // A partition of one 4 KiB block: header and entries, and nothing more to read.
-    world();
-    write_gpt_image("g-small.bin", 4096, 512, first4, last4, names4, 2, -1, 0x80, 2);
-    path_in(img, sizeof img, g_img, "/g-small.bin");
-    shim_storage_set(20, img);
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0 && g.found && g.entries == 2 && bis_gpt_start_of(&g, "USER") == 0x800LL * 512,
-          "a 4 KiB partition: rc %08x found %d entries %u", (unsigned)g.rc, g.found, g.entries);
-
-    // Entries that are not in the first 64 KiB: a second read.
-    world();
-    write_gpt_image("g-far.bin", P, 512, first4, last4, names4, 2, -1, 0x80, 200);
-    path_in(img, sizeof img, g_img, "/g-far.bin");
-    shim_storage_set(20, img);
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0 && g.found && g.entries == 2 && strcmp(g.table[1].name, "USER") == 0,
-          "entries at block 200: rc %08x found %d entries %u", (unsigned)g.rc, g.found, g.entries);
-
-    // No table: so it says, and that is not an error.
-    world();
-    write_image("g-none.bin", P, 77, NULL, 0);
-    path_in(img, sizeof img, g_img, "/g-none.bin");
-    shim_storage_set(20, img);
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0 && !g.found && g.entries == 0 && g.sector_size == 0, "random data: rc %08x found %d",
-          (unsigned)g.rc, g.found);
-    CHECK(bis_gpt_start_of(&g, "USER") == -1, "a partition was found without a table");
-
-    // The signature alone, over a header that makes no sense, is not a table.
-    world();
-    write_image("g-sig.bin", P, 78, NULL, 0);
-    path_in(img, sizeof img, g_img, "/g-sig.bin");
-    shim_storage_set(20, img);
-    path_in(full, sizeof full, g_img, "/g-sig.bin");
-    {
-        FILE* f = fopen(full, "r+b");
-        CHECK(f != NULL, "cannot open %s", full);
-        if (f) {
-            fputs("EFI PART", f); // at byte 0, not in block 1
-            fclose(f);
-        }
-    }
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0 && !g.found, "a signature in block 0 was taken for a table");
-
-    // A partition this process cannot open, as on Switch 2.
-    world();
-    shim_storage_deny(20, 0xE02);
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0xE02 && !g.found, "a locked partition: rc %08x found %d", (unsigned)g.rc, g.found);
-
-    // A header whose entry size is 0: the header is reported, with no entries.
-    world();
-    write_gpt_image("g-bad.bin", P, 512, first, last, names, N, -1, 0, 2);
-    path_in(img, sizeof img, g_img, "/g-bad.bin");
-    shim_storage_set(20, img);
-    bis_read_gpt(20, &g);
-    CHECK(g.rc == 0 && g.found && g.entries == 0, "entry size 0: rc %08x found %d entries %u",
-          (unsigned)g.rc, g.found, g.entries);
-}
-
-// ---- partial dumps -----------------------------------------------------------------------------
 
 // The part files of a dump called `stem` (`len` bytes, split) joined in order.
 static const char* concat_dump(const char* stem, s64 len) {
@@ -1577,7 +1413,7 @@ int main(void) {
         { "commit failure", test_commit_failure_is_not_fatal },
         { "refusals", test_refusals },
         { "formatting", test_fmt },
-        { "gpt", test_gpt },
+
         { "partial", test_partial },
         { "serve", test_serve },
     };

@@ -179,44 +179,6 @@ BisDumpStatus bis_dump_range(const BisPartition* part, FsFileSystem* sd, const c
 void bis_partial_stem(char* out, size_t cap, const char* name, s64 start, s64 end);
 
 // -----------------------------------------------------------------------------------------
-// Partition table (GPT) at the start of a partition
-//
-// On Switch 1 the user data area of the eMMC (FsBisPartitionId 20, UserDataRoot) starts with a
-// GUID partition table, in plain text: a protective MBR in block 0, the header in block 1, the
-// entries from block 2. The entries give the first and last block of every partition, so also
-// of partitions this process cannot open. Whether Switch 2 keeps that layout is not known;
-// bis_read_gpt() just reads whatever is there.
-// -----------------------------------------------------------------------------------------
-#define BIS_GPT_MAX_ENTRIES 128
-
-typedef struct {
-    char name[40];   // the entry's name narrowed to ASCII; empty for an unused entry
-    u64 first_lba;   // first block, in units of BisGpt.sector_size
-    u64 last_lba;    // last block, inclusive
-} BisGptEntry;
-
-typedef struct {
-    Result rc;      // a failed OpenBisStorage or Read; 0 otherwise
-    bool found;     // a GPT header is there
-    u64 sector_size;// bytes per block (512 on eMMC, 4096 on storage with 4 KiB blocks)
-    u32 entries;    // entries read, used and unused
-    BisGptEntry table[BIS_GPT_MAX_ENTRIES];
-} BisGpt;
-
-// Read the table at the start of partition `id`. Read-only: OpenBisStorage, Read, Close.
-// found is false, with rc 0, when the first 64 KiB hold no GPT header.
-void bis_read_gpt(u32 id, BisGpt* g);
-
-// Offset of the first byte of the partition called `name` (regardless of case), or -1.
-s64 bis_gpt_start_of(const BisGpt* g, const char* name);
-
-// Length in bytes of entry `i` (0 for an unused or missing one).
-s64 bis_gpt_size_of(const BisGpt* g, int i);
-
-// Write the table as text to "<out_dir>/<name>.gpt.txt", replacing an earlier one.
-Result bis_write_gpt(FsFileSystem* sd, const char* out_dir, const char* name, const BisGpt* g);
-
-// -----------------------------------------------------------------------------------------
 // Network reader: a program on the PC (net_pull.py) pulls partition bytes over TCP.
 // The console only reads NAND; these are all the requests there are, one per line:
 //
