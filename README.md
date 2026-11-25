@@ -38,12 +38,12 @@ Before anyone tries to make a big deal about PRODINFO again: It's all just [cali
 The included `net_pull.py` can be used with base python3 to interact with it. Here are some example commands:
 
 ```
-python3 net_pull.py ping --host your.console.ip.here
-python3 net_pull.py list --host your.console.ip.here
-python3 net_pull.py list --out partitions.txt --host your.console.ip.here
-python3 net_pull.py read 0 0 end BootPartition1Root.bin --host your.console.ip.here
-python3 net_pull.py read 10 0 end BootPartition2Root.bin --host your.console.ip.here
-python3 net_pull.py read 20 0 end UserDataRoot.bin --host your.console.ip.here
+python3 net_pull.py --host [your.console.ip.here] ping
+python3 net_pull.py --host [your.console.ip.here] list
+python3 net_pull.py --host [your.console.ip.here] list --out partitions.txt
+python3 net_pull.py --host [your.console.ip.here] read 0 0 end BootPartition1Root.bin
+python3 net_pull.py --host [your.console.ip.here] read 10 0 end BootPartition2Root.bin
+python3 net_pull.py --host [your.console.ip.here] read 20 0 end UserDataRoot.bin
 ```
 
 You can and should also validate a NAND backup like so:
