@@ -1,8 +1,5 @@
 # cheeky-nands (with the lads)
 
-> [!IMPORTANT]
-> **epistemic status:** just dropped it, needs more public testers, works well for me but don't rely fully on it yet, please.
-
 Switch 2 homebrew to read NAND partitions and dump them to an SD card or over network to a PC.
 
 ![screenshot of the app](.github/assets/screenshot.webp)
@@ -18,11 +15,19 @@ menu.
 
 On the Switch 2, 0 (BootPartition1Root, LUN0), 10 (BootPartition2Root, LUN1) and UserDataRoot (20) could be used to reconstruct the UFS contents after a brick. UserDataRoot contains the encrypted contents, the rest are all decrypted.
 
-Beware: UserDataRoot is 256GB, and over network it'll take 2-6 hours to dump it, and ~2 more to validate it. You still want to dump it, but maybe leave it overnight. Plug it to power or smth. Make sure you have enough free space beforehand. If dumping to a microsd express, it should be ~10x faster.
+Beware: UserDataRoot is 256GB, and over wifi it'll take 2-6 hours to dump it, and ~2 more to validate it. Over a gigabit ethernet connection with the dock (make sure you're set up with 90dns or whatever on the wired network settings too btw), it'll be closer to an hour instead. If it'll take too long, consider leaving it overnight. Plug it to power or something. Make sure you have enough free space beforehand. If dumping to a microsd express, it should be about as fast as the gigabit dump at around an hour.
 
 [See this Switchbrew article for background](https://switchbrew.org/wiki/Switch_2:_Flash_Filesystem).
 
 Before anyone tries to make a big deal about PRODINFO again: It's all just [calibration data](https://switchbrew.org/wiki/Calibration) with not even any partly-certificates within (on switch 2, they're reportedly on PRODINFOF). This is not the first time someone dumps it, and won't be the last.
+
+#### Remark on space and compression
+
+Unused NAND sections appear to be zeroes on disk. This means that if you haven't utilized too much of your nand, it should compress decently well afterwards, at least just down to the used space of your switch 2 nand.
+
+I'm not sure if removing anything from your nand zeroes it back out again, so how much it'll compress to may instead represent the most you've ever stored on your NAND. If anyone tests this, let me know. I'm not willing to delete all the games I downloaded before 23.5.0 dropped.
+
+This tool doesn't come with any built-in compression, compress it yourself afterwards :) I can recommend [zstd](https://en.wikipedia.org/wiki/Zstd) but really, zip, rar, 7z etc will work too.
 
 ### How to dump
 
@@ -61,7 +66,8 @@ This will generate and compare hashes of chunks on both console and PC, and if a
 
 ## Thanks to
 
-- SciresM, who pointed out this was possible in reswitched a few weeks back, [jump link](https://discord.com/channels/269333940928512010/1356976144418865384/1567965047693512736)
+- SciresM, who pointed out this was possible and detailed how in reswitched a few weeks back, [jump link](https://discord.com/channels/269333940928512010/1356976144418865384/1567965047693512736)
+- Switchbrew, which remains a very useful reference for all this.
 
 ## llm remark
 
